@@ -4,9 +4,7 @@ using System.Net.Sockets;
 using System.Text;
 
 namespace Server.Utils
-{
-
-
+{ 
     public class Socks5Server
     {
         public static void HandleClient(TcpClient client)
@@ -52,10 +50,26 @@ namespace Server.Utils
 
             Console.WriteLine(username + password);
 
-            byte[] authResponse = username == "user" && password == "pass" ? new byte[] { 0x01, 0x00 } : new byte[] { 0x01, 0x01 };
+            bool isAuthSuccessful = username == "user" && password == "pass";
+            byte[] authResponse;
+
+            
+            // 包含公钥
+            var keyManager = new RSAKeyManager();
+            byte[] pubKeyBytes = keyManager.GetPublicKeyBytes();
+            byte pubKeyLen = (byte)pubKeyBytes.Length;
+            authResponse = new byte[3 + pubKeyLen]; // 1字节VER, 1字节STATUS, 1字节LEN, 剩余为PUBKEY
+
+            authResponse[0] = 0x01; // VER
+            authResponse[1] = isAuthSuccessful ? (byte)0x00 : (byte)0x01; // STATUS (成功)
+            authResponse[3] = pubKeyLen;
+
+            Buffer.BlockCopy(pubKeyBytes, 0, authResponse, 3, pubKeyBytes.Length);
+            
+
             stream.Write(authResponse, 0, authResponse.Length);
 
-            if (authResponse[1] == 0x01)
+            if (!isAuthSuccessful)
             {
                 client.Close();
             }

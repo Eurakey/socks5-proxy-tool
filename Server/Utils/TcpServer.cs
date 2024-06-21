@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Server.Utils
@@ -14,7 +15,6 @@ namespace Server.Utils
 
             TcpClient destClient = new TcpClient(destAddress, destPort);
             NetworkStream destStream = destClient.GetStream();
-
             byte[] connectResponse = { 0x05, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0 };
             stream.Write(connectResponse, 0, connectResponse.Length);
 

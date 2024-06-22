@@ -70,6 +70,7 @@ namespace Server.Utils
             authResponse[3] = (byte)(pubKeyLen & 0xFF); // LEN 低字节
 
             Buffer.BlockCopy(pubKeyBytes, 0, authResponse, 4, pubKeyBytes.Length);
+            Console.WriteLine(authResponse[4]);
 
             stream.Write(authResponse, 0, authResponse.Length);
 
@@ -104,7 +105,7 @@ namespace Server.Utils
             // 读取 AES 密钥长度（2 字节）
             byte[] lenBuffer = new byte[2];
             int bytesRead = stream.Read(lenBuffer, 0, 2);
-            Console.WriteLine("目标位置");
+            Console.WriteLine(bytesRead);
             if (bytesRead != 2)
             {
                 throw new IOException("Failed to read the length of the encrypted AES key.");
@@ -121,6 +122,7 @@ namespace Server.Utils
             {
                 throw new IOException("Failed to read the encrypted AES key.");
             }
+            Console.WriteLine("dfa");
 
             // 解密 AES 密钥
             byte[] decryptedAESKey = keyManager.DecryptData(encryptedAESKey);

@@ -65,7 +65,6 @@ namespace WpfApp1
                     //接收：socks版本5，要求用户名和密码
                     byte[] handshakeResponse = new byte[2];
                     stream.Read(handshakeResponse, 0, handshakeResponse.Length);
-
                     if (handshakeResponse[1] == 0x02)
                     {
                         Log("Server selected username/password authentication");
@@ -87,7 +86,6 @@ namespace WpfApp1
 
                         byte[] authResponse = new byte[4];
                         stream.Read(authResponse, 0, authResponse.Length);
-
                         if (authResponse[1] != 0x00)
                         {
                             Log("Authentication failed");
@@ -98,7 +96,6 @@ namespace WpfApp1
                         {
                             Log("Authentication successfully");
                         }
-
                         //读RSA公钥长度
                         int publicKeyLength = (authResponse[2] << 8) + authResponse[3];
                         Log("PubKey Length:", publicKeyLength);

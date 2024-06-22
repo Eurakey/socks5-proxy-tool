@@ -3,6 +3,7 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading.Tasks;
 using Server.Utils;
 
 namespace Server
@@ -21,7 +22,9 @@ namespace Server
                 // 接受客户端连接
                 var client = listener.AcceptTcpClient();
                 Console.WriteLine("Client connected!");
-                Socks5Server.HandleClient(client);
+
+                // 为每个客户端连接启动一个新的任务
+                Task.Run(() => Socks5Server.HandleClient(client));
             }
         }
     }

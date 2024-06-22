@@ -1,11 +1,12 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Server.Utils
-{ 
+{
     public class Socks5Server
     {
         public static void HandleClient(TcpClient client)
@@ -52,13 +53,16 @@ namespace Server.Utils
             Console.WriteLine(username + password);
 
             bool isAuthSuccessful = username == "user" && password == "pass";
-            
-            
+            Console.WriteLine("鉴权是否成功：{0}", isAuthSuccessful);
+
+
             // 包含公钥
+            //更改
             var keyManager = new RSAKeyManager();
-            byte[] pubKeyBytes = keyManager.GetPublicKeyBytes();
+            byte[] pubKeyBytes = keyManager.GetPublicKeyBytes();  // 使用新的方法获取公钥数据
             int pubKeyLen = pubKeyBytes.Length;
-            byte[] authResponse = new byte[4 + pubKeyLen]; // 1字节VER, 1字节STATUS, 1字节LEN, 剩余为PUBKEY
+            Console.WriteLine("公钥长度: {0}", pubKeyLen);
+            byte[] authResponse = new byte[4 + pubKeyLen]; // 1字节VER, 1字节STATUS, 2字节LEN, 剩余为PUBKEY
 
             authResponse[0] = 0x01; // VER
             authResponse[1] = isAuthSuccessful ? (byte)0x00 : (byte)0x01; // STATUS (成功)
@@ -66,7 +70,7 @@ namespace Server.Utils
             authResponse[3] = (byte)(pubKeyLen & 0xFF); // LEN 低字节
 
             Buffer.BlockCopy(pubKeyBytes, 0, authResponse, 4, pubKeyBytes.Length);
-            
+
             stream.Write(authResponse, 0, authResponse.Length);
 
             if (!isAuthSuccessful)
@@ -78,7 +82,7 @@ namespace Server.Utils
                 ReceiveEncryptedAESKey(stream, keyManager);
             }
         }
-        
+
         private static void HandleRequest(NetworkStream stream, TcpClient client)
         {
             byte[] buffer = new byte[4];
@@ -93,19 +97,19 @@ namespace Server.Utils
                 UdpServer.HandleUdpAssociate(stream, client);
             }
         }
-        
-        
+
+
         private static void ReceiveEncryptedAESKey(NetworkStream stream, RSAKeyManager keyManager)
         {
             // 读取 AES 密钥长度（2 字节）
             byte[] lenBuffer = new byte[2];
             int bytesRead = stream.Read(lenBuffer, 0, 2);
-            Console.WriteLine(bytesRead);
+            Console.WriteLine("目标位置");
             if (bytesRead != 2)
             {
                 throw new IOException("Failed to read the length of the encrypted AES key.");
             }
-    
+
             // 将长度字节转换为整数
             int aesKeyLength = (lenBuffer[0] << 8) | lenBuffer[1];
             Console.WriteLine(aesKeyLength);
@@ -124,7 +128,7 @@ namespace Server.Utils
             // 此时，decryptedAESKey 包含解密后的 AES 密钥，可以用于后续的加密通信
             Console.WriteLine("Received and decrypted AES key: " + BitConverter.ToString(decryptedAESKey));
         }
-        
+
     }
 
 }

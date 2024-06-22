@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Security.Cryptography;
 
@@ -48,17 +48,7 @@ public class RSAKeyManager
         }
     }
 
-    /*public byte[] GetAsnEncodedPublicKey()
-    {
-        using (var rsa = new RSACryptoServiceProvider())
-        {
-            rsa.ImportParameters(PublicKey);
-            return rsa.ExportRSAPublicKey();  // 导出ASN.1 DER编码的公钥
-        }
-    }*/
-
-
-    /*public byte[] GetPublicKeyBytes()
+    public byte[] GetPublicKeyBytes()
     {
         // 获取公钥参数
         byte[] modulus = PublicKey.Modulus;
@@ -73,23 +63,15 @@ public class RSAKeyManager
         Buffer.BlockCopy(exponent, 0, pubKeyBytes, 8 + modulus.Length, exponent.Length);
 
         return pubKeyBytes;
-    }*/
-    public byte[] GetPublicKeyBytes()
-    {
-        using (var rsa = new RSACryptoServiceProvider())
-        {
-            rsa.ImportParameters(PublicKey);
-            return rsa.ExportRSAPublicKey();  // 导出ASN.1 DER编码的公钥
-        }
     }
 
-
+    
     public byte[] DecryptData(byte[] data)
     {
         using (var rsa = new RSACryptoServiceProvider())
         {
             rsa.ImportParameters(PrivateKey);
-            return rsa.Decrypt(data, true);
+            return rsa.Decrypt(data, false);
         }
     }
 }

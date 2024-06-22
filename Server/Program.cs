@@ -1,9 +1,8 @@
 ﻿using System;
-using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading.Tasks;
+using Server.Core;
 using Server.Utils;
 
 namespace Server
@@ -12,20 +11,37 @@ namespace Server
     {
         static void Main(string[] args)
         {
-            // 创建一个TcpListener实例，监听所有IP地址的1080端口
-            TcpListener listener = new TcpListener(IPAddress.Any, 1080);
-            listener.Start();
+            var server = new Socks5Server();
+            server.Start();
+        }
+    }
+
+    public class Socks5Server
+    {
+        private readonly TcpListener _listener;
+
+        public Socks5Server()
+        {
+            _listener = new TcpListener(IPAddress.Any, 1080);
+        }
+
+        public void Start()
+        {
+            _listener.Start();
             Console.WriteLine("Socks5 server is listening on port 1080...");
 
             while (true)
             {
-                // 接受客户端连接
-                var client = listener.AcceptTcpClient();
+                var client = _listener.AcceptTcpClient();
                 Console.WriteLine("Client connected!");
-
-                // 为每个客户端连接启动一个新的任务
-                Task.Run(() => Socks5Server.HandleClient(client));
+                Task.Run(() => HandleClient(client));
             }
+        }
+
+        private static void HandleClient(TcpClient client)
+        {
+            var handler = new ClientHandler(client);
+            handler.Process();
         }
     }
 }

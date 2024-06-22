@@ -5,9 +5,9 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Server.Utils
+namespace Server.Core
 {
-    public class Socks5Server
+    public class Server
     {
         public static void HandleClient(TcpClient client)
         {
@@ -65,7 +65,7 @@ namespace Server.Utils
             byte[] authResponse = new byte[4 + pubKeyLen]; // 1字节VER, 1字节STATUS, 2字节LEN, 剩余为PUBKEY
 
             authResponse[0] = 0x01; // VER
-            authResponse[1] = isAuthSuccessful ? (byte)0x00 : (byte)0x01; // STATUS (成功)
+            authResponse[1] = isAuthSuccessful ? (byte)0x00 : (byte)0x01; // STATUS (是否成功)
             authResponse[2] = (byte)(pubKeyLen >> 8); // LEN 高字节
             authResponse[3] = (byte)(pubKeyLen & 0xFF); // LEN 低字节
 
@@ -122,7 +122,6 @@ namespace Server.Utils
             {
                 throw new IOException("Failed to read the encrypted AES key.");
             }
-            Console.WriteLine("dfa");
 
             // 解密 AES 密钥
             byte[] decryptedAESKey = keyManager.DecryptData(encryptedAESKey);

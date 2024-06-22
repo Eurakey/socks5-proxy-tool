@@ -172,17 +172,30 @@ namespace WpfApp1
                     }
 
                     Log("Connection request successful");
+                    
+                    // 通过代理服务器与目标服务器通信
+                    string httpRequest = "GET / HTTP/1.1\r\nHost: baidu.com\r\nConnection: close\r\n\r\n";
+                    byte[] httpRequestBytes = Encoding.ASCII.GetBytes(httpRequest);
+                    stream.Write(httpRequestBytes, 0, httpRequestBytes.Length);
 
-                    // Start TcpListener to listen on local port
-                    TcpListener listener = new TcpListener(IPAddress.Loopback, localPort);
-                    listener.Start();
-                    Log("Listening on port " + localPort);
-
-                    while (true)
+                    // 读取响应并显示
+                    byte[] buffer = new byte[8192];
+                    int b;
+                    while ((b = stream.Read(buffer, 0, buffer.Length)) > 0)
                     {
-                        TcpClient localClient = listener.AcceptTcpClient();
-                        Task.Run(() => HandleClient(localClient, client));
+                        Console.Write(Encoding.ASCII.GetString(buffer, 0, b));
                     }
+
+                    // // Start TcpListener to listen on local port
+                    // TcpListener listener = new TcpListener(IPAddress.Loopback, localPort);
+                    // listener.Start();
+                    // Log("Listening on port " + localPort);
+                    //
+                    // while (true)
+                    // {
+                    //     TcpClient localClient = listener.AcceptTcpClient();
+                    //     Task.Run(() => HandleClient(localClient, client));
+                    // }
                 }
             }
             catch (Exception ex)

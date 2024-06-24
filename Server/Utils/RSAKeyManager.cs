@@ -50,28 +50,19 @@ public class RSAKeyManager
 
     public byte[] GetPublicKeyBytes()
     {
-        // 获取公钥参数
-        byte[] modulus = PublicKey.Modulus;
-        byte[] exponent = PublicKey.Exponent;
-
-        // 组合公钥字节数组
-        byte[] pubKeyBytes = new byte[modulus.Length + exponent.Length + 8]; // 4字节用于模数长度，4字节用于指数长度
-
-        Buffer.BlockCopy(BitConverter.GetBytes(modulus.Length), 0, pubKeyBytes, 0, 4);
-        Buffer.BlockCopy(modulus, 0, pubKeyBytes, 4, modulus.Length);
-        Buffer.BlockCopy(BitConverter.GetBytes(exponent.Length), 0, pubKeyBytes, 4 + modulus.Length, 4);
-        Buffer.BlockCopy(exponent, 0, pubKeyBytes, 8 + modulus.Length, exponent.Length);
-
-        return pubKeyBytes;
-    }
-
-    
-    public byte[] DecryptData(byte[] data)
-    {
         using (var rsa = new RSACryptoServiceProvider())
         {
+            rsa.ImportParameters(PublicKey);
+            return rsa.ExportRSAPublicKey(); // 导出ASN.1 DER编码的公钥
+        }
+    }
+
+    public byte[] DecryptData(byte[] data)
+    {
+        using (var rsa = RSA.Create())
+        {
             rsa.ImportParameters(PrivateKey);
-            return rsa.Decrypt(data, false);
+            return rsa.Decrypt(data, RSAEncryptionPadding.OaepSHA256); 
         }
     }
 }

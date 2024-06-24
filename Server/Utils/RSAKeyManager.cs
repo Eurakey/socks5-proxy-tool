@@ -57,7 +57,6 @@ public class RSAKeyManager
         }
     }
 
-    
     public byte[] DecryptData(byte[] data)
     {
         using (var rsa = RSA.Create())

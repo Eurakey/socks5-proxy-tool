@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using Server.Utils;
 
@@ -10,11 +11,15 @@ namespace Server.Core
     {
         private readonly TcpClient _client;
         private readonly NetworkStream _stream;
+        private readonly RSAKeyManager _keyManager;
+        private byte[] _aesKey;
+        private byte[] _aesIV;
 
         public ClientHandler(TcpClient client)
         {
             _client = client;
             _stream = client.GetStream();
+            _keyManager = new RSAKeyManager();
         }
 
         public void Process()
@@ -62,8 +67,7 @@ namespace Server.Core
             bool isAuthSuccessful = username == "user" && password == "pass";
             Console.WriteLine("鉴权是否成功：{0}", isAuthSuccessful);
 
-            var keyManager = new RSAKeyManager();
-            byte[] pubKeyBytes = keyManager.GetPublicKeyBytes();
+            byte[] pubKeyBytes = _keyManager.GetPublicKeyBytes();
             int pubKeyLen = pubKeyBytes.Length;
             Console.WriteLine("公钥长度: {0}", pubKeyLen);
             byte[] authResponse = new byte[4 + pubKeyLen];
@@ -84,7 +88,7 @@ namespace Server.Core
             }
             else
             {
-                ReceiveEncryptedAESKey(keyManager);
+                ReceiveEncryptedAESKey();
             }
         }
 
@@ -95,15 +99,15 @@ namespace Server.Core
 
             if (buffer[1] == 0x01)
             {
-                TcpServer.HandleConnect(_stream, _client, buffer);
+                TcpServer.HandleConnect(_stream, _client, buffer, _aesKey, _aesIV);
             }
             else if (buffer[1] == 0x03)
             {
-                UdpServer.HandleUdpAssociate(_stream, _client);
+                UdpServer.HandleUdpAssociate(_stream, _client, _aesKey, _aesIV);
             }
         }
 
-        private void ReceiveEncryptedAESKey(RSAKeyManager keyManager)
+        private void ReceiveEncryptedAESKey()
         {
             byte[] lenBuffer = new byte[2];
             int bytesRead = _stream.Read(lenBuffer, 0, 2);
@@ -123,8 +127,60 @@ namespace Server.Core
                 throw new IOException("Failed to read the encrypted AES key.");
             }
 
-            byte[] decryptedAESKey = keyManager.DecryptData(encryptedAESKey);
-            Console.WriteLine("Received and decrypted AES key: " + BitConverter.ToString(decryptedAESKey));
+            // 解密 AES 密钥
+            _aesKey = _keyManager.DecryptData(encryptedAESKey);
+
+            // 读取 IV（假设 IV 长度为 16 字节）
+            _aesIV = new byte[16];
+            bytesRead = _stream.Read(_aesIV, 0, _aesIV.Length);
+            if (bytesRead != _aesIV.Length)
+            {
+                throw new IOException("Failed to read the IV.");
+            }
+
+            Console.WriteLine("Received and decrypted AES key: " + BitConverter.ToString(_aesKey));
+            Console.WriteLine("Received IV: " + BitConverter.ToString(_aesIV));
+        }
+
+        private byte[] EncryptData(byte[] data, byte[] key, byte[] iv)
+        {
+            using (var aes = Aes.Create())
+            {
+                aes.Key = key;
+                aes.IV = iv;
+                var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
+
+                using (var ms = new MemoryStream())
+                {
+                    using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
+                    {
+                        cs.Write(data, 0, data.Length);
+                        cs.FlushFinalBlock();
+                    }
+                    return ms.ToArray();
+                }
+            }
+        }
+
+        private byte[] DecryptData(byte[] data, byte[] key, byte[] iv)
+        {
+            using (var aes = Aes.Create())
+            {
+                aes.Key = key;
+                aes.IV = iv;
+                var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
+
+                using (var ms = new MemoryStream(data))
+                {
+                    using (var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read))
+                    {
+                        byte[] decryptedData = new byte[data.Length];
+                        int bytesRead = cs.Read(decryptedData, 0, data.Length);
+                        Array.Resize(ref decryptedData, bytesRead);
+                        return decryptedData;
+                    }
+                }
+            }
         }
     }
 }

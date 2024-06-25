@@ -35,13 +35,6 @@ namespace Server.Core
 
             try
             {
-                // using (var aes = Aes.Create())
-                // {
-                    // aes.Key = aesKey;
-                    // aes.IV = aesIV;
-
-                    // var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
-                    // var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
                     Console.WriteLine("RelayData started");
 
                     while ((bytesRead = clientStream.Read(buffer, 0, buffer.Length)) > 0)
@@ -70,7 +63,6 @@ namespace Server.Core
                         // 将加密后的响应发送回客户端
                         clientStream.Write(encryptedData, 0, encryptedData.Length);
                     }
-                // }
             }
             catch (Exception ex)
             {
@@ -84,33 +76,7 @@ namespace Server.Core
                 Console.WriteLine("RelayData finished");
             }
         }
-
-        // private static byte[] EncryptData(byte[] data, int offset, int count, ICryptoTransform encryptor)
-        // {
-        //     using (var ms = new MemoryStream())
-        //     {
-        //         using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
-        //         {
-        //             cs.Write(data, offset, count);
-        //             cs.FlushFinalBlock();
-        //         }
-        //         return ms.ToArray();
-        //     }
-        // }
-        //
-        // private static byte[] DecryptData(byte[] data, int offset, int count, ICryptoTransform decryptor)
-        // {
-        //     using (var ms = new MemoryStream(data, offset, count))
-        //     {
-        //         using (var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read))
-        //         {
-        //             byte[] decryptedData = new byte[count + decryptor.OutputBlockSize];
-        //             int bytesRead = cs.Read(decryptedData, 0, decryptedData.Length);
-        //             Array.Resize(ref decryptedData, bytesRead);
-        //             return decryptedData;
-        //         }
-        //     }
-        // }
+        
 
 
         private static byte[] CreateConnectResponse(string destAddress, int destPort)

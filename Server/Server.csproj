@@ -30,8 +30,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+<!--        <PackageReference Include="MySql.Command" Version="1.0.6" />-->
         <PackageReference Include="System.Security.Cryptography.Xml" Version="4.7.0" />
+<!--        <PackageReference Include="MySql.Data" Version="8.0.23" />-->
+        <PackageReference Include="Microsoft.Data.Sqlite" Version="5.0.11" />
     </ItemGroup>
+    
 
     <ItemGroup>
       <Folder Include="Properties\" />

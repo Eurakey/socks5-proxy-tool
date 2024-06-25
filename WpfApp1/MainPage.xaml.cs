@@ -227,26 +227,64 @@ namespace WpfApp1
 
                     // 发送加密后的请求
                     stream.Write(encryptedHttpRequestBytes, 0, encryptedHttpRequestBytes.Length);
-
+                    Log("request send successfully");
                     // stream.Write(httpRequestBytes, 0, httpRequestBytes.Length);
                     // 读取响应并显示
                     byte[] buffer = new byte[8192];
                     using (MemoryStream memoryStream = new MemoryStream())
                     {
                         int bytesRead;
-                        while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                        try
                         {
-                            memoryStream.Write(buffer, 0, bytesRead);
+                            while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                            {
+                                // 写入到内存流
+                                memoryStream.Write(buffer, 0, bytesRead);
+                                Log($"Read {bytesRead} bytes from stream.");
+
+                                // 解密从流中读取的数据
+                                byte[] encryptedData = memoryStream.ToArray();
+                                byte[] decryptedData = DecryptWithAES(encryptedData, aesKey, aesIV);
+
+                                // 将解密后的数据转换为字符串并处理
+                                string decryptedString = Encoding.ASCII.GetString(decryptedData);
+                                Log("Decrypted Data: " + decryptedString);
+                            }
+                        }
+                        catch (IOException e)
+                        {
+                            Log($"IOException: {e.Message}");
                         }
 
+
+                        Log("target location");
                         byte[] encryptedResponseBytes = memoryStream.ToArray();
+
+                        if (encryptedResponseBytes.Length == 0)
+                        {
+                            Log("No data was read from the stream.");
+                            return;
+                        }
+
                         byte[] decryptedResponseBytes = DecryptWithAES(encryptedResponseBytes, aesKey, aesIV);
 
-                        string responseString = Encoding.ASCII.GetString(decryptedResponseBytes);
-                        Console.WriteLine(responseString);
+                        if (decryptedResponseBytes.Length == 0)
+                        {
+                            Log("Decryption failed or produced no output.");
+                            return;
+                        }
 
-                        // 将解密后的响应写入文件
-                        File.WriteAllText("response.html", responseString);
+                        string responseString = Encoding.ASCII.GetString(decryptedResponseBytes);
+
+                        if (string.IsNullOrEmpty(responseString))
+                        {
+                            Log("Decrypted response is empty.");
+                        }
+                        else
+                        {
+                            File.WriteAllText("response.html", responseString);
+                            Log("Response written to response.html");
+                        }
                     }
 
                     /*// Start TcpListener to listen on local port

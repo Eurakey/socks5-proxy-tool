@@ -2,12 +2,13 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
-// using Server.Core;
+using NLog;
 
 namespace Server.Core
 {
     public class Socks5Server
     {
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private readonly TcpListener _listener;
         private readonly int _port;
 
@@ -20,12 +21,12 @@ namespace Server.Core
         public void Start()
         {
             _listener.Start();
-            Console.WriteLine($"Socks5 server is listening on port {_port}...");
+            Logger.Info($"Socks5 server is listening on port {_port}...");
 
             while (true)
             {
                 var client = _listener.AcceptTcpClient();
-                Console.WriteLine("Client connected!");
+                Logger.Info("Client connected!");
                 Task.Run(() => HandleClient(client));
             }
         }

@@ -1,10 +1,10 @@
 using System;
-using System.Data;
 using System.IO;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.Data.Sqlite; // 使用 Microsoft.Data.Sqlite
+using Microsoft.Data.Sqlite;
+using NLog;
 using Server.Utils;
 using static Utils.AesEncryption;
 
@@ -12,13 +12,13 @@ namespace Server.Core
 {
     public class ClientHandler
     {
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private readonly TcpClient _client;
         private readonly NetworkStream _stream;
         private readonly RSAKeyManager _keyManager;
         private byte[] _aesKey;
         private byte[] _aesIV;
 
-        // SQLite 数据库连接字符串
         private readonly string _connectionString = "Data Source=users.db";
 
         public ClientHandler(TcpClient client)
@@ -26,31 +26,43 @@ namespace Server.Core
             _client = client;
             _stream = client.GetStream();
             _keyManager = new RSAKeyManager();
-            InitializeDatabase(); // 确保数据库在类实例化时初始化
+            InitializeDatabase();
         }
 
         public void Process()
         {
+            Logger.Info("Starting handshake...");
             Handshake();
+            Logger.Info("Handshake completed.");
+            
+            Logger.Info("Starting authentication...");
             Authentication();
+            Logger.Info("Authentication completed.");
+            
+            Logger.Info("Handling client request...");
             HandleRequest();
+            Logger.Info("Client request handled.");
         }
 
         private void Handshake()
         {
             byte[] buffer = new byte[2];
             _stream.Read(buffer, 0, 2);
+            Logger.Info($"Received handshake: {BitConverter.ToString(buffer)}");
+
             if (buffer[0] != 0x05)
             {
-                throw new Exception("SOCKS版本不支持");
+                throw new Exception("Unsupported SOCKS version");
             }
 
             byte methodsCount = buffer[1];
             byte[] methods = new byte[methodsCount];
             _stream.Read(methods, 0, methodsCount);
+            Logger.Info($"Supported methods: {BitConverter.ToString(methods)}");
 
             byte[] response = { 0x05, 0x02 };
             _stream.Write(response, 0, response.Length);
+            Logger.Info("Handshake response sent.");
         }
 
         private void Authentication()
@@ -71,10 +83,10 @@ namespace Server.Core
                 _stream.Read(passBytes, 0, passLen);
                 string password = Encoding.ASCII.GetString(passBytes);
 
-                Console.WriteLine($"Username: {username}, Password: {password}");
+                // Logger.Info($"Received credentials - Username: {username}, Password: {password}");
 
                 bool isAuthSuccessful = ValidateUser(username, password);
-                Console.WriteLine("Authentication success: {0}", isAuthSuccessful);
+                Logger.Info($"Authentication success: {isAuthSuccessful}");
 
                 byte[] pubKeyBytes = _keyManager.GetPublicKeyBytes();
                 int pubKeyLen = pubKeyBytes.Length;
@@ -88,29 +100,32 @@ namespace Server.Core
                 Buffer.BlockCopy(pubKeyBytes, 0, authResponse, 4, pubKeyBytes.Length);
 
                 _stream.Write(authResponse, 0, authResponse.Length);
+                Logger.Info("Authentication response sent.");
 
                 if (!isAuthSuccessful)
                 {
-                    Console.WriteLine("Authentication failed. Closing connection.");
+                    Logger.Info("Authentication failed. Closing connection.");
                     _client.Close();
                 }
                 else
                 {
+                    Logger.Info("Receiving encrypted AES key...");
                     ReceiveEncryptedAESKey();
+                    Logger.Info("AES key received and decrypted.");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error during authentication: " + ex.Message);
+                Logger.Error("Error during authentication: " + ex.Message);
                 _client.Close();
             }
         }
-
 
         private void HandleRequest()
         {
             byte[] buffer = new byte[4];
             _stream.Read(buffer, 0, 4);
+            Logger.Info($"Received request: {BitConverter.ToString(buffer)}");
 
             if (buffer[1] == 0x01)
             {
@@ -148,14 +163,12 @@ namespace Server.Core
                 throw new IOException("Failed to read the IV.");
             }
 
-            // 解密 IV（如果需要）
             _aesIV = encryptedIV;
 
-            Console.WriteLine("Received and decrypted AES key: " + BitConverter.ToString(_aesKey));
-            Console.WriteLine("Received IV: " + BitConverter.ToString(_aesIV));
+            Logger.Info($"Received and decrypted AES key: {BitConverter.ToString(_aesKey)}");
+            Logger.Info($"Received IV: {BitConverter.ToString(_aesIV)}");
         }
 
-        // 初始化数据库
         private void InitializeDatabase()
         {
             using (var connection = new SqliteConnection(_connectionString))
@@ -186,7 +199,6 @@ namespace Server.Core
             }
         }
 
-        // 验证用户凭据
         private bool ValidateUser(string username, string password)
         {
             using (var connection = new SqliteConnection(_connectionString))
@@ -196,7 +208,7 @@ namespace Server.Core
                 using (var command = new SqliteCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@username", username);
-                    command.Parameters.AddWithValue("@password", password); // 注意：实际应用中应对密码进行哈希处理
+                    command.Parameters.AddWithValue("@password", password);
 
                     int userCount = Convert.ToInt32(command.ExecuteScalar());
                     return userCount > 0;

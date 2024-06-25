@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
@@ -230,7 +231,22 @@ namespace WpfApp1
                     _stream.Write(encryptedHttpRequestBytes, 0, encryptedHttpRequestBytes.Length);
                     Log("Request sent successfully");
 
-                    byte[] buffer = new byte[8192];
+                    // 读取2字节长度并转换为大端序int
+                    byte[] lengthBytes = new byte[3];
+                    _stream.Read(lengthBytes, 0, lengthBytes.Length);
+                    Log("HTMLlength",lengthBytes.Length);
+
+                    // 如果系统的字节顺序不是大端序，反转字节数组
+                    if (BitConverter.IsLittleEndian)
+                    {
+                        Array.Reverse(lengthBytes);
+                    }
+
+                    // 将字节数组转换为int
+                    int length = BitConverter.ToInt16(lengthBytes, 0);
+
+                    // 更新buffer长度
+                    byte[] buffer = new byte[length];
                     using (MemoryStream memoryStream = new MemoryStream())
                     {
                         int bytesRead;
@@ -258,7 +274,7 @@ namespace WpfApp1
                                 }
                                 else
                                 {
-                                    File.WriteAllText("response.html", decryptedString);
+                                    File.WriteAllText("response.txt", decryptedString);
                                     Log("Response written to response.html");
                                 }
                             }

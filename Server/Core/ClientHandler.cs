@@ -55,47 +55,57 @@ namespace Server.Core
 
         private void Authentication()
         {
-            byte[] authBuffer = new byte[2];
-            _stream.Read(authBuffer, 0, 2);
-            byte version = authBuffer[0];
-            byte userLen = authBuffer[1];
-
-            byte[] userBytes = new byte[userLen];
-            _stream.Read(userBytes, 0, userLen);
-            string username = Encoding.ASCII.GetString(userBytes);
-
-            byte passLen = (byte)_stream.ReadByte();
-            byte[] passBytes = new byte[passLen];
-            _stream.Read(passBytes, 0, passLen);
-            string password = Encoding.ASCII.GetString(passBytes);
-
-            Console.WriteLine($"用户名：{username}，密码：{password}");
-
-            bool isAuthSuccessful = ValidateUser(username, password);
-            Console.WriteLine("鉴权是否成功：{0}", isAuthSuccessful);
-
-            byte[] pubKeyBytes = _keyManager.GetPublicKeyBytes();
-            int pubKeyLen = pubKeyBytes.Length;
-            byte[] authResponse = new byte[4 + pubKeyLen];
-
-            authResponse[0] = 0x01;
-            authResponse[1] = isAuthSuccessful ? (byte)0x00 : (byte)0x01;
-            authResponse[2] = (byte)(pubKeyLen >> 8);
-            authResponse[3] = (byte)(pubKeyLen & 0xFF);
-
-            Buffer.BlockCopy(pubKeyBytes, 0, authResponse, 4, pubKeyBytes.Length);
-
-            _stream.Write(authResponse, 0, authResponse.Length);
-
-            if (!isAuthSuccessful)
+            try
             {
+                byte[] authBuffer = new byte[2];
+                _stream.Read(authBuffer, 0, 2);
+                byte version = authBuffer[0];
+                byte userLen = authBuffer[1];
+
+                byte[] userBytes = new byte[userLen];
+                _stream.Read(userBytes, 0, userLen);
+                string username = Encoding.ASCII.GetString(userBytes);
+
+                byte passLen = (byte)_stream.ReadByte();
+                byte[] passBytes = new byte[passLen];
+                _stream.Read(passBytes, 0, passLen);
+                string password = Encoding.ASCII.GetString(passBytes);
+
+                Console.WriteLine($"Username: {username}, Password: {password}");
+
+                bool isAuthSuccessful = ValidateUser(username, password);
+                Console.WriteLine("Authentication success: {0}", isAuthSuccessful);
+
+                byte[] pubKeyBytes = _keyManager.GetPublicKeyBytes();
+                int pubKeyLen = pubKeyBytes.Length;
+                byte[] authResponse = new byte[4 + pubKeyLen];
+
+                authResponse[0] = 0x01;
+                authResponse[1] = isAuthSuccessful ? (byte)0x00 : (byte)0x01;
+                authResponse[2] = (byte)(pubKeyLen >> 8);
+                authResponse[3] = (byte)(pubKeyLen & 0xFF);
+
+                Buffer.BlockCopy(pubKeyBytes, 0, authResponse, 4, pubKeyBytes.Length);
+
+                _stream.Write(authResponse, 0, authResponse.Length);
+
+                if (!isAuthSuccessful)
+                {
+                    Console.WriteLine("Authentication failed. Closing connection.");
+                    _client.Close();
+                }
+                else
+                {
+                    ReceiveEncryptedAESKey();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error during authentication: " + ex.Message);
                 _client.Close();
             }
-            else
-            {
-                ReceiveEncryptedAESKey();
-            }
         }
+
 
         private void HandleRequest()
         {

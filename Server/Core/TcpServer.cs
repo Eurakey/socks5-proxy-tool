@@ -52,7 +52,7 @@ namespace Server.Core
             RelayData(clientStream, serverStream, aesKey, aesIV);
         }
 
-        private static void RelayData(NetworkStream clientStream, NetworkStream serverStream, byte[] aesKey, byte[] aesIV)
+       private static void RelayData(NetworkStream clientStream, NetworkStream serverStream, byte[] aesKey, byte[] aesIV)
         {
             byte[] buffer = new byte[8192];
             int bytesRead = 0;
@@ -82,7 +82,17 @@ namespace Server.Core
                     byte[] responseData = responseStream.ToArray();
                     byte[] encryptedData = EncryptWithAES(responseData, aesKey, aesIV);
 
-                    // 将加密后的响应发送回客户端
+                    // 计算加密数据的长度，并转换为三字节形式
+                    int encryptedDataLength = encryptedData.Length;
+                    byte[] lengthBytes = new byte[3];
+                    lengthBytes[0] = (byte)((encryptedDataLength >> 16) & 0xFF);
+                    lengthBytes[1] = (byte)((encryptedDataLength >> 8) & 0xFF);
+                    lengthBytes[2] = (byte)(encryptedDataLength & 0xFF);
+
+                    // 先将长度信息发送到客户端
+                    clientStream.Write(lengthBytes, 0, lengthBytes.Length);
+
+                    // 再将加密后的响应发送回客户端
                     clientStream.Write(encryptedData, 0, encryptedData.Length);
 
                     // 记录解密后的响应（用于调试）
@@ -92,14 +102,7 @@ namespace Server.Core
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error in RelayData: " + ex.Message);
-            }
-            finally
-            {
-                // 确保流被正确关闭以释放资源
-                clientStream.Close();
-                serverStream.Close();
-                Console.WriteLine("RelayData finished");
+                Console.WriteLine("Exception in RelayData: " + ex.Message);
             }
         }
 

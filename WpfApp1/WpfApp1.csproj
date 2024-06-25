@@ -11,6 +11,9 @@
   <ItemGroup>
     <Compile Remove="tcp.cs" />
     <Compile Remove="udp.cs" />
+    <Compile Include="..\Utils\AesEncryption.cs">
+      <Link>AesEncryption.cs</Link>
+    </Compile>
   </ItemGroup>
 
   <ItemGroup>

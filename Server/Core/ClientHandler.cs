@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using Server.Utils;
+using static Utils.AesEncryption;
 
 namespace Server.Core
 {
@@ -111,14 +112,14 @@ namespace Server.Core
         {
             byte[] lenBuffer = new byte[2];
             int bytesRead = _stream.Read(lenBuffer, 0, 2);
-            Console.WriteLine(bytesRead);
+            Console.WriteLine("len" + bytesRead);
             if (bytesRead != 2)
             {
                 throw new IOException("Failed to read the length of the encrypted AES key.");
             }
 
             int aesKeyLength = (lenBuffer[0] << 8) | lenBuffer[1];
-            Console.WriteLine(aesKeyLength);
+            Console.WriteLine("aesKeyLength" + aesKeyLength);
 
             byte[] encryptedAESKey = new byte[aesKeyLength];
             bytesRead = _stream.Read(encryptedAESKey, 0, aesKeyLength);
@@ -126,61 +127,32 @@ namespace Server.Core
             {
                 throw new IOException("Failed to read the encrypted AES key.");
             }
-
-            // 解密 AES 密钥
             _aesKey = _keyManager.DecryptData(encryptedAESKey);
 
-            // 读取 IV（假设 IV 长度为 16 字节）
-            _aesIV = new byte[16];
-            bytesRead = _stream.Read(_aesIV, 0, _aesIV.Length);
-            if (bytesRead != _aesIV.Length)
+            // // 读取加密的 IV
+            // byte[] encryptedIV = new byte[256];
+            // bytesRead = _stream.Read(encryptedIV, 0, encryptedIV.Length);
+            // if (bytesRead != encryptedIV.Length)
+            // {
+            //     throw new IOException("Failed to read the encrypted IV.");
+            // }
+            //
+            // // 解密 IV
+            // _aesIV = _keyManager.DecryptData(encryptedIV);
+            // Console.WriteLine(_aesKey.Length);
+            byte[] encryptedIV = new byte[16];
+            bytesRead = _stream.Read(encryptedIV, 0, encryptedIV.Length);
+            if (bytesRead != encryptedIV.Length)
             {
                 throw new IOException("Failed to read the IV.");
             }
 
+            // 解密 IV（如果需要）
+            _aesIV = encryptedIV;
+
             Console.WriteLine("Received and decrypted AES key: " + BitConverter.ToString(_aesKey));
             Console.WriteLine("Received IV: " + BitConverter.ToString(_aesIV));
         }
-
-        private byte[] EncryptData(byte[] data, byte[] key, byte[] iv)
-        {
-            using (var aes = Aes.Create())
-            {
-                aes.Key = key;
-                aes.IV = iv;
-                var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
-
-                using (var ms = new MemoryStream())
-                {
-                    using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
-                    {
-                        cs.Write(data, 0, data.Length);
-                        cs.FlushFinalBlock();
-                    }
-                    return ms.ToArray();
-                }
-            }
-        }
-
-        private byte[] DecryptData(byte[] data, byte[] key, byte[] iv)
-        {
-            using (var aes = Aes.Create())
-            {
-                aes.Key = key;
-                aes.IV = iv;
-                var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
-
-                using (var ms = new MemoryStream(data))
-                {
-                    using (var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read))
-                    {
-                        byte[] decryptedData = new byte[data.Length];
-                        int bytesRead = cs.Read(decryptedData, 0, data.Length);
-                        Array.Resize(ref decryptedData, bytesRead);
-                        return decryptedData;
-                    }
-                }
-            }
-        }
+        
     }
 }

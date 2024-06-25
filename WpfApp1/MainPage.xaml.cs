@@ -165,10 +165,11 @@ namespace WpfApp1
                             aes.GenerateIV();
                             aesKey = aes.Key;
                             aesIV = aes.IV;
+                            Log("aesIV", aesIV.Length);
 
                             // 加密AES密钥
                             byte[] encryptedAesKey = rsa.Encrypt(aesKey, RSAEncryptionPadding.OaepSHA256);
-                            byte[] encryptedAesIV = rsa.Encrypt(aesIV, RSAEncryptionPadding.OaepSHA256);
+                            // byte[] encryptedAesIV = rsa.Encrypt(aesIV, RSAEncryptionPadding.OaepSHA256);
 
                             // Send encrypted AES key
                             byte[] keyLength = BitConverter.GetBytes((short)encryptedAesKey.Length);
@@ -177,7 +178,8 @@ namespace WpfApp1
                             Log("keyLength[1]", keyLength[1]);
                             stream.Write(keyLength, 0, keyLength.Length);
                             stream.Write(encryptedAesKey, 0, encryptedAesKey.Length);
-                            stream.Write(encryptedAesIV, 0, encryptedAesIV.Length);
+                            stream.Write(aesIV, 0, aesIV.Length);
+                            // stream.Write(encryptedAesIV, 0, encryptedAesIV.Length);
                         }
 
                         Log("AES key exchange successful");
@@ -226,7 +228,7 @@ namespace WpfApp1
                     // 发送加密后的请求
                     stream.Write(encryptedHttpRequestBytes, 0, encryptedHttpRequestBytes.Length);
 
-                    stream.Write(httpRequestBytes, 0, httpRequestBytes.Length);
+                    // stream.Write(httpRequestBytes, 0, httpRequestBytes.Length);
                     // 读取响应并显示
                     byte[] buffer = new byte[8192];
                     using (MemoryStream memoryStream = new MemoryStream())
@@ -241,6 +243,7 @@ namespace WpfApp1
                         byte[] decryptedResponseBytes = DecryptWithAES(encryptedResponseBytes, aesKey, aesIV);
 
                         string responseString = Encoding.ASCII.GetString(decryptedResponseBytes);
+                        Console.WriteLine(responseString);
 
                         // 将解密后的响应写入文件
                         File.WriteAllText("response.html", responseString);

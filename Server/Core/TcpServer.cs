@@ -1,9 +1,12 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
+using System.Text;
 using Server.Utils;
+using static Utils.AesEncryption;
 
 namespace Server.Core
 {
@@ -11,6 +14,7 @@ namespace Server.Core
     {
         public static void HandleConnect(NetworkStream clientStream, TcpClient client, byte[] buffer, byte[] aesKey, byte[] aesIV)
         {
+            Console.WriteLine(BitConverter.ToString(buffer));
             string destAddress = NetworkUtils.GetDestinationAddress(clientStream, buffer[3]);
             int destPort = NetworkUtils.GetDestinationPort(clientStream);
             Console.WriteLine(destAddress, destPort);
@@ -28,52 +32,86 @@ namespace Server.Core
         {
             byte[] buffer = new byte[8192];
             int bytesRead = 0;
-            using (var aes = Aes.Create())
+
+            try
             {
-                aes.Key = aesKey;
-                aes.IV = aesIV;
+                // using (var aes = Aes.Create())
+                // {
+                    // aes.Key = aesKey;
+                    // aes.IV = aesIV;
 
-                var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
-                var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
+                    // var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
+                    // var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
+                    Console.WriteLine("RelayData started");
 
-                while ((bytesRead = clientStream.Read(buffer, 0, buffer.Length)) > 0)
-                {
-                    byte[] decryptedData = DecryptData(buffer, 0, bytesRead, decryptor);
-                    serverStream.Write(decryptedData, 0, decryptedData.Length);
-                    
-                    bytesRead = serverStream.Read(buffer, 0, buffer.Length);
-                    byte[] encryptedData = EncryptData(buffer, 0, bytesRead, encryptor);
-                    clientStream.Write(encryptedData, 0, encryptedData.Length);
-                }
+                    while ((bytesRead = clientStream.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        // 解密从客户端收到的数据
+                        byte[] decryptedData = DecryptWithAES(buffer.Take(bytesRead).ToArray(), aesKey, aesIV);
+                        string decryptedString = Encoding.ASCII.GetString(decryptedData);
+                        Console.WriteLine("Decrypted Data: " + decryptedString);
+
+                        // 将解密后的数据发送到目标服务器
+                        serverStream.Write(decryptedData, 0, decryptedData.Length);
+
+                        // 从目标服务器读取响应
+                        bytesRead = serverStream.Read(buffer, 0, buffer.Length);
+                        if (bytesRead == 0)
+                        {
+                            break; // 服务器关闭连接
+                        }
+
+                        // 加密目标服务器的响应
+                        string dec = Encoding.ASCII.GetString(buffer);
+                        Console.WriteLine("Decrypted Data: " + dec);
+                        byte[] encryptedData = EncryptWithAES(buffer.Take(bytesRead).ToArray(), aesKey, aesIV);
+                        
+                        
+                        // 将加密后的响应发送回客户端
+                        clientStream.Write(encryptedData, 0, encryptedData.Length);
+                    }
+                // }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in RelayData: " + ex.Message);
+            }
+            finally
+            {
+                // 确保流被正确关闭以释放资源
+                clientStream.Close();
+                serverStream.Close();
+                Console.WriteLine("RelayData finished");
             }
         }
 
-        private static byte[] EncryptData(byte[] data, int offset, int count, ICryptoTransform encryptor)
-        {
-            using (var ms = new MemoryStream())
-            {
-                using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
-                {
-                    cs.Write(data, offset, count);
-                    cs.FlushFinalBlock();
-                }
-                return ms.ToArray();
-            }
-        }
+        // private static byte[] EncryptData(byte[] data, int offset, int count, ICryptoTransform encryptor)
+        // {
+        //     using (var ms = new MemoryStream())
+        //     {
+        //         using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
+        //         {
+        //             cs.Write(data, offset, count);
+        //             cs.FlushFinalBlock();
+        //         }
+        //         return ms.ToArray();
+        //     }
+        // }
+        //
+        // private static byte[] DecryptData(byte[] data, int offset, int count, ICryptoTransform decryptor)
+        // {
+        //     using (var ms = new MemoryStream(data, offset, count))
+        //     {
+        //         using (var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read))
+        //         {
+        //             byte[] decryptedData = new byte[count + decryptor.OutputBlockSize];
+        //             int bytesRead = cs.Read(decryptedData, 0, decryptedData.Length);
+        //             Array.Resize(ref decryptedData, bytesRead);
+        //             return decryptedData;
+        //         }
+        //     }
+        // }
 
-        private static byte[] DecryptData(byte[] data, int offset, int count, ICryptoTransform decryptor)
-        {
-            using (var ms = new MemoryStream(data, offset, count))
-            {
-                using (var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read))
-                {
-                    byte[] decryptedData = new byte[count];
-                    int bytesRead = cs.Read(decryptedData, 0, count);
-                    Array.Resize(ref decryptedData, bytesRead);
-                    return decryptedData;
-                }
-            }
-        }
 
         private static byte[] CreateConnectResponse(string destAddress, int destPort)
         {

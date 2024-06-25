@@ -37,4 +37,10 @@
       <Folder Include="Properties\" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Compile Include="..\Utils\AesEncryption.cs">
+        <Link>AesEncryption.cs</Link>
+      </Compile>
+    </ItemGroup>
+
 </Project>

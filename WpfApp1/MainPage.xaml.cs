@@ -14,6 +14,7 @@ namespace WpfApp1
         private TcpClient _client;
         private NetworkStream _stream;
         private CancellationTokenSource _cancellationTokenSource;
+        private bool _isConnected;
 
         public MainPage()
         {
@@ -55,6 +56,18 @@ namespace WpfApp1
 
         public void connect_Click(object sender, RoutedEventArgs e)
         {
+            if (_isConnected)
+            {
+                // 断开连接
+                _cancellationTokenSource?.Cancel();
+                _stream?.Close();
+                _client?.Close();
+                _isConnected = false;
+                Log("Disconnected from server.");
+                connect.Content = "连接";
+            }
+            else
+            {
             string configPath = "config.json";
             Config config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(configPath));
             // 从文本框获取服务器地址、服务器端口、用户名、密码和本地端口。
@@ -62,13 +75,21 @@ namespace WpfApp1
             int serverPort = int.Parse(config.ServerPort);
             string userName = username.Text;
             string password = password_input.Text;
+            if(password.Length<=0)
+            {
+                    Log("Password Empty.Check and try again.");
+                    return;
+            }
             int localPort = int.Parse(config.LocalPort);
 
             config.Username = username.Text;
             SaveConfig(config, configPath);
 
             _cancellationTokenSource = new CancellationTokenSource();
-            Task.Run(() => StartSocks5Client(serverAddress, serverPort, userName, password, localPort, _cancellationTokenSource.Token));
+                Task.Run(() => StartSocks5Client(serverAddress, serverPort, userName, password, localPort, _cancellationTokenSource.Token));
+                _isConnected = true;
+                connect.Content = "断开"; // 更新按钮文本
+            }
         }
 
         private void StartSocks5Client(string serverAddress, int serverPort, string userName, string password, int localPort, CancellationToken cancellationToken)
@@ -88,7 +109,7 @@ namespace WpfApp1
                     byte[] handshakeRequest = new byte[] { 0x05, 0x02, 0x00, 0x02 };
                     _stream.Write(handshakeRequest, 0, handshakeRequest.Length);
 
-                    //接收：socks版本5，要求用户名和密码
+                    // 接收：socks版本5，要求用户名和密码
                     byte[] handshakeResponse = new byte[2];
                     _stream.Read(handshakeResponse, 0, handshakeResponse.Length);
 
@@ -96,17 +117,17 @@ namespace WpfApp1
                     {
                         Log("Server selected username/password authentication");
 
-                        //编码字节数组
+                        // 编码字节数组
                         byte[] userNameBytes = Encoding.ASCII.GetBytes(userName);
                         byte[] passwordBytes = Encoding.ASCII.GetBytes(password);
 
                         byte[] authRequest = new byte[3 + userNameBytes.Length + passwordBytes.Length];
-                        authRequest[0] = 0x01; //子协议版本1
-                        authRequest[1] = (byte)userNameBytes.Length; //用户名字节长度
+                        authRequest[0] = 0x01; // 子协议版本1
+                        authRequest[1] = (byte)userNameBytes.Length; // 用户名字节长度
 
-                        Array.Copy(userNameBytes, 0, authRequest, 2, userNameBytes.Length); //复制用户名
-                        authRequest[2 + userNameBytes.Length] = (byte)passwordBytes.Length; //密码字节长度
-                        Array.Copy(passwordBytes, 0, authRequest, 3 + userNameBytes.Length, passwordBytes.Length); //复制密码
+                        Array.Copy(userNameBytes, 0, authRequest, 2, userNameBytes.Length); // 复制用户名
+                        authRequest[2 + userNameBytes.Length] = (byte)passwordBytes.Length; // 密码字节长度
+                        Array.Copy(passwordBytes, 0, authRequest, 3 + userNameBytes.Length, passwordBytes.Length); // 复制密码
 
                         _stream.Write(authRequest, 0, authRequest.Length);
 
@@ -124,7 +145,7 @@ namespace WpfApp1
                             Log("Authentication successfully");
                         }
 
-                        //读RSA公钥长度
+                        // 读RSA公钥长度
                         int publicKeyLength = (authResponse[2] << 8) + authResponse[3];
                         Log("PubKey Length:", publicKeyLength);
 
@@ -201,7 +222,7 @@ namespace WpfApp1
                     }
 
                     Log("Connection request successful");
-                    
+
                     string httpRequest = "GET / HTTP/1.1\r\nHost: baidu.com\r\nConnection: close\r\n\r\n";
                     byte[] httpRequestBytes = Encoding.ASCII.GetBytes(httpRequest);
                     byte[] encryptedHttpRequestBytes = EncryptWithAES(httpRequestBytes, aesKey, aesIV);
@@ -268,14 +289,11 @@ namespace WpfApp1
                     Log("Operation canceled.");
                 }
             }
-        }
-
-        public void disconnect_Click(object sender, RoutedEventArgs e)
-        {
-            _cancellationTokenSource?.Cancel();
-            _stream?.Close();
-            _client?.Close();
-            Log("Disconnected from server.");
+            finally
+            {
+                _isConnected = false;
+                Application.Current.Dispatcher.Invoke(() => connect.Content = "连接"); // 确保在主线程上更新按钮文本
+            }
         }
 
         private byte[] ParseIpAddress(string ipAddress)
@@ -327,7 +345,7 @@ namespace WpfApp1
             Dispatcher.Invoke(() =>
             {
                 logBox.Text += message + Environment.NewLine;
-                logBox.ScrollToEnd(); // Auto scroll to end
+                logBox.ScrollToEnd(); 
             });
         }
 

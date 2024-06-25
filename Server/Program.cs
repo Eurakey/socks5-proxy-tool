@@ -23,12 +23,10 @@ namespace Server
         {
             var config = new LoggingConfiguration();
             
-            // Console target
             var logconsole = new ConsoleTarget("logconsole");
             config.AddTarget(logconsole);
             config.AddRule(LogLevel.Info, LogLevel.Fatal, logconsole);
             
-            // File target
             var logfile = new FileTarget("logfile") { FileName = "file.txt" };
             config.AddTarget(logfile);
             config.AddRule(LogLevel.Info, LogLevel.Fatal, logfile);

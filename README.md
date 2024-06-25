@@ -1,10 +1,46 @@
 # Socks5 Proxy Tool
 
-System.Net.Sockets
+Socks5ProxyTool 是一个基于 C# 开发的 简易SOCKS5 代理服务器项目。
 
-System.Security.Cryptography
+[toc]
 
-### 1. 客户端与服务端的交互流程
+## 项目简介
+
+Socks5ProxyTool 提供了一个完整的 SOCKS5 代理服务器实现，支持基本的认证和代理功能。
+
+## 目录结构
+
+```
+Socks5ProxyTool/
+├── README.md
+├── Server/
+│   ├── Program.cs
+│   ├── Server.csproj
+│   ├── Core/
+│   │   ├── ClientHandler.cs
+│   │   ├── Socks5Server.cs
+│   │   ├── TcpServer.cs
+│   │   ├── UdpServer.cs
+│   └── Utils/
+│       ├── NetworkUtils.cs
+│       └── RSAKeyManager.cs
+├── Utils/
+│   └── AesEncryption.cs
+└── WpfApp1/
+    ├── App.xaml
+    ├── App.xaml.cs
+    ├── AssemblyInfo.cs
+    ├── Config.cs
+    ├── MainPage.xaml
+    ├── MainPage.xaml.cs
+    ├── MainWindow.xaml
+    ├── MainWindow.xaml.cs
+    ├── RegisterPage.xaml
+    ├── RegisterPage.xaml.cs
+    └── WpfApp1.csproj
+```
+
+##  客户端与服务端的交互流程
 
 #### 1.1. 握手阶段（Handshake）
 
@@ -156,56 +192,9 @@ System.Security.Cryptography
      - BND.ADDR: 绑定地址（服务端的绑定地址，根据ATYP的值决定长度）。
      - BND.PORT: 绑定端口（2字节）。
 
-### 2. 数据加密和解密
+####  2.数据加密和解密
 
-使用对称加密算法（如AES）对数据进行加密和解密。
+使用RSA交换AES密钥
 
-#### 加密数据
-
-```csharp
-public byte[] EncryptData(byte[] data, byte[] key, byte[] iv)
-{
-    using (Aes aes = Aes.Create())
-    {
-        aes.Key = key;
-        aes.IV = iv;
-        ICryptoTransform encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
-
-        using (MemoryStream ms = new MemoryStream())
-        {
-            using (CryptoStream cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
-            {
-                cs.Write(data, 0, data.Length);
-                cs.FlushFinalBlock();
-                return ms.ToArray();
-            }
-        }
-    }
-}
-```
-
-#### 解密数据
-```csharp
-public byte[] DecryptData(byte[] data, byte[] key, byte[] iv)
-{
-    using (Aes aes = Aes.Create())
-    {
-        aes.Key = key;
-        aes.IV = iv;
-        ICryptoTransform decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
-
-        using (MemoryStream ms = new MemoryStream(data))
-        {
-            using (CryptoStream cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read))
-            {
-                using (MemoryStream output = new MemoryStream())
-                {
-                    cs.CopyTo(output);
-                    return output.ToArray();
-                }
-            }
-        }
-    }
-}
-```
+使用AES密钥对数据进行加密和解密。
 

@@ -75,7 +75,7 @@ namespace WpfApp1
             string serverAddress = config.ServerIP;
             int serverPort = int.Parse(config.ServerPort);
             string userName = username.Text;
-            string password = password_input.Text;
+            string password = password_input.Password;
             if(password.Length<=0)
             {
                     Log("Password Empty.Check and try again.");
